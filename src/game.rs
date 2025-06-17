@@ -19,6 +19,7 @@ pub struct Game {
     pub total_questions: u32,
     pub last_answer_correct: bool,
     pub selected_answer: Option<usize>,
+    pub answer_results: Vec<bool>, // Track correct/incorrect for each question
 }
 
 impl Game {
@@ -32,6 +33,7 @@ impl Game {
             total_questions: 10,
             last_answer_correct: false,
             selected_answer: None,
+            answer_results: Vec::new(), // Initialize with an empty vector
         })
     }
 
@@ -39,6 +41,7 @@ impl Game {
         self.state = GameState::Loading;
         self.score = 0;
         self.current_question_index = 0;
+        self.answer_results.clear(); // Clear previous results
         
         // Fetch questions from API
         match self.api.fetch_questions(self.total_questions).await {
@@ -74,6 +77,9 @@ impl Game {
                 self.score += 1;
             }
             
+            // Track the result of this answer
+            self.answer_results.push(self.last_answer_correct);
+            
             self.state = GameState::ShowResult;
         }
         Ok(())
@@ -98,6 +104,7 @@ impl Game {
         self.current_question_index = 0;
         self.score = 0;
         self.selected_answer = None;
+        self.answer_results.clear(); // Clear the answer results
         Ok(())
     }
 

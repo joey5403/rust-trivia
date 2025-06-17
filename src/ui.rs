@@ -1,8 +1,8 @@
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
-    text::Line,
-    widgets::{Block, Borders, Gauge, List, ListItem, Paragraph, Wrap},
+    text::{Line, Span},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Wrap},
     Frame,
 };
 use crate::game::{Game, GameState};
@@ -89,15 +89,8 @@ fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
             ])
             .split(area);
 
-        // Progress bar
-        let (current, total) = game.progress();
-        let progress = current as f64 / total as f64;
-        let gauge = Gauge::default()
-            .block(Block::default().borders(Borders::ALL).title("Progress"))
-            .gauge_style(Style::default().fg(Color::Green))
-            .ratio(progress)
-            .label(format!("{}/{} | Score: {}", current, total, game.score));
-        f.render_widget(gauge, chunks[0]);
+        // Colorful progress indicator showing individual results
+        draw_colored_progress(f, chunks[0], game);
 
         // Question
         let question_text = decode_html(&question.question);
@@ -138,15 +131,8 @@ fn draw_result(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
             ])
             .split(area);
 
-        // Progress bar
-        let (current, total) = game.progress();
-        let progress = current as f64 / total as f64;
-        let gauge = Gauge::default()
-            .block(Block::default().borders(Borders::ALL).title("Progress"))
-            .gauge_style(Style::default().fg(Color::Green))
-            .ratio(progress)
-            .label(format!("{}/{} | Score: {}", current, total, game.score));
-        f.render_widget(gauge, chunks[0]);
+        // Colorful progress indicator showing individual results
+        draw_colored_progress(f, chunks[0], game);
 
         // Result
         let result_text = if game.last_answer_correct {
@@ -215,4 +201,55 @@ fn decode_html(text: &str) -> String {
         .replace("&lt;", "<")
         .replace("&gt;", ">")
         .replace("&apos;", "'")
+}
+
+fn draw_colored_progress(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
+    let (current, total) = game.progress();
+    
+    // Create spans with appropriate colors
+    let mut spans = Vec::new();
+    
+    for (i, &is_correct) in game.answer_results.iter().enumerate() {
+        if i > 0 {
+            spans.push(Span::raw(" "));
+        }
+        
+        let color = if is_correct { Color::Green } else { Color::Red };
+        let symbol = if is_correct { "✓" } else { "✗" };
+        spans.push(Span::styled(symbol, Style::default().fg(color)));
+    }
+    
+    // Add current question indicator if we're still in the game
+    if game.current_question_index < game.questions.len() {
+        if !game.answer_results.is_empty() {
+            spans.push(Span::raw(" "));
+        }
+        spans.push(Span::styled("●", Style::default().fg(Color::Yellow))); // Current question
+        
+        // Add remaining questions
+        for _ in (game.current_question_index + 1)..game.questions.len() {
+            spans.push(Span::raw(" "));
+            spans.push(Span::styled("○", Style::default().fg(Color::Gray)));
+        }
+    } else {
+        // Game is over, show remaining as gray if any
+        for i in game.answer_results.len()..game.questions.len() {
+            if i > 0 || !game.answer_results.is_empty() {
+                spans.push(Span::raw(" "));
+            }
+            spans.push(Span::styled("○", Style::default().fg(Color::Gray)));
+        }
+    }
+    
+    let progress_line = Line::from(spans);
+    let score_info = format!("Question {}/{} | Score: {}/{}", current, total, game.score, game.answer_results.len().max(1));
+    
+    let progress_paragraph = Paragraph::new(vec![
+        progress_line,
+        Line::from(score_info),
+    ])
+    .alignment(Alignment::Center)
+    .block(Block::default().borders(Borders::ALL).title("Progress"));
+    
+    f.render_widget(progress_paragraph, area);
 }
