@@ -1,0 +1,88 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build and Run Rust Trivia",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"run"
+			],
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "Build Debug",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"build"
+			],
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "Build Release",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"build",
+				"--release"
+			],
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "Test",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"test"
+			],
+			"group": "test",
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "Check",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"check"
+			],
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			]
+		},
+		{
+			"label": "Format Code",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"fmt"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Clippy Lint",
+			"type": "shell",
+			"command": "cargo",
+			"args": [
+				"clippy"
+			],
+			"group": "build",
+			"problemMatcher": [
+				"$rustc"
+			]
+		}
+	]
+}
