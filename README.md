@@ -1,14 +1,30 @@
 # Rust Trivia Game
 
-A terminal-based trivia game built with Rust, using ratatui for the UI and the OpenTDB API for questions.
+A terminal-based trivia game built with Rust, featuring a beautiful TUI powered by ratatui and real questions from the OpenTDB API.
 
 ## Features
 
-- **Interactive Terminal UI**: Beautiful terminal interface built with ratatui
+- **Interactive Terminal UI**: Built with ratatui for a polished terminal experience
+- **Category Selection**: Choose from 11 trivia categories or play all categories
 - **Live Trivia Questions**: Fetches real questions from the OpenTDB API
-- **Score Tracking**: Real-time score display and progress tracking
-- **Keyboard Navigation**: Simple keyboard controls for playing
-- **Error Handling**: Graceful fallback when API is unavailable
+- **Score Tracking**: Real-time score display with colorful progress indicators
+- **Keyboard Navigation**: Intuitive controls for playing
+- **Error Handling**: Graceful fallback with built-in questions when API is unavailable
+
+## Available Categories
+
+- All Categories
+- General Knowledge
+- Books
+- Film
+- Music
+- Science & Nature
+- Computers
+- Mathematics
+- Sports
+- Geography
+- History
+- Animals
 
 ## Technologies Used
 
@@ -18,6 +34,7 @@ A terminal-based trivia game built with Rust, using ratatui for the UI and the O
 - **tokio** - Async runtime for Rust
 - **reqwest** - HTTP client for API requests
 - **serde** - Serialization/deserialization framework
+- **anyhow** - Flexible error handling
 - **OpenTDB API** - Free trivia questions database
 
 ## Getting Started
@@ -27,51 +44,78 @@ A terminal-based trivia game built with Rust, using ratatui for the UI and the O
 - Rust (1.70 or later)
 - Internet connection (for fetching trivia questions)
 
-### Installation
+### Installation & Running
 
-1. Clone this repository:
+1. Clone the repository:
    ```bash
    git clone <repository-url>
    cd rust-trivia
    ```
 
-2. Build the project:
+2. Build and run:
    ```bash
-   cargo build --release
+   cargo run --release
    ```
 
-3. Run the game:
-   ```bash
-   cargo run
-   ```
+Or build separately and run:
+```bash
+cargo build --release
+./target/release/rust-trivia
+```
 
 ## How to Play
 
-1. **Start Game**: Press `Enter` at the main menu to start
-2. **Answer Questions**: Press `1-4` to select your answer
-3. **View Results**: Results are shown automatically after each question
-4. **Navigate**: 
-   - `Enter` - Start game/Play again
-   - `1-4` - Select answers
-   - `q` - Quit at any time
+1. **Main Menu**: Press `Enter` to start
+2. **Select Category**: Use `↑`/`↓` to navigate, `Enter` to confirm (first option = all categories)
+3. **Answer Questions**: Press `1-4` to select your answer
+4. **View Results**: Final results shown at game over with all questions and correct answers
 
 ## Game Flow
 
 1. **Menu Screen**: Welcome screen with instructions
-2. **Loading**: Fetches questions from OpenTDB API
-3. **Questions**: Multiple choice questions with 4 options
-4. **Results**: Shows if answer was correct/incorrect
-5. **Game Over**: Final score and performance message
+2. **Category Selection**: Browse and select a trivia category
+3. **Loading**: Fetches questions from OpenTDB API
+4. **Questions**: Multiple choice questions with 4 shuffled options
+5. **Game Over**: Final score, percentage, and detailed question review
 
 ## Project Structure
 
 ```
 src/
-├── main.rs     # Main application entry point and game loop
+├── main.rs     # Application entry point and game loop
 ├── api.rs      # OpenTDB API client and data structures
 ├── game.rs     # Game state management and logic
 └── ui.rs       # Terminal UI rendering with ratatui
 ```
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Start game / Confirm category / Play again |
+| `↑` / `↓` | Navigate category list |
+| `1-4` | Select answer |
+| `q` | Quit game |
+
+## Progress Tracking
+
+During the game, the progress bar shows:
+- **✓ (green)** - Correct answer
+- **✗ (red)** - Incorrect answer  
+- **● (yellow)** - Current question
+- **○ (gray)** - Upcoming questions
+
+## Performance Messages
+
+Based on your final score percentage:
+
+| Score | Message |
+|-------|---------|
+| 90%+ | 🏆 Excellent! You're a trivia master! |
+| 80-89% | 🌟 Great job! Very impressive! |
+| 70-79% | 👍 Good work! Keep it up! |
+| 60-69% | 😊 Not bad! Room for improvement! |
+| <60% | 😅 Better luck next time! |
 
 ## API Integration
 
@@ -79,51 +123,33 @@ The game fetches trivia questions from the [Open Trivia Database](https://opentd
 - Endpoint: `https://opentdb.com/api.php`
 - Question Type: Multiple choice only
 - Default: 10 questions per game
-- Fallback: Local questions if API is unavailable
-
-## Controls
-
-| Key | Action |
-|-----|--------|
-| `Enter` | Start game / Play again |
-| `1` | Select first answer |
-| `2` | Select second answer |
-| `3` | Select third answer |
-| `4` | Select fourth answer |
-| `q` | Quit game |
-
-## Performance Messages
-
-Based on your final score percentage:
-- 90%+: "🏆 Excellent! You're a trivia master!"
-- 80-89%: "🌟 Great job! Very impressive!"
-- 70-79%: "👍 Good work! Keep it up!"
-- 60-69%: "😊 Not bad! Room for improvement!"
-- <60%: "😅 Better luck next time!"
+- Fallback: Built-in questions if API is unavailable
 
 ## Development
 
-### Building for Debug
+### Build
 ```bash
-cargo build
+cargo build              # Debug build
+cargo build --release    # Release build
 ```
 
-### Building for Release
+### Run
 ```bash
-cargo build --release
+cargo run                # Run debug build
+cargo run --release     # Run release build
 ```
 
-### Running Tests
+### Test
 ```bash
 cargo test
 ```
 
-### Code Formatting
+### Format
 ```bash
 cargo fmt
 ```
 
-### Linting
+### Lint
 ```bash
 cargo clippy
 ```
@@ -136,10 +162,6 @@ cargo clippy
 4. Run tests: `cargo test`
 5. Format code: `cargo fmt`
 6. Submit a pull request
-
-## License
-
-This project is open source and available under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
