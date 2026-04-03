@@ -132,7 +132,12 @@ fn draw_loading(
                 Line::from(""),
                 Line::from(strings.translating_title),
                 Line::from(""),
-                Line::from(format!("Translating Questions ({}/{})", current, total)),
+                Line::from(
+                    strings
+                        .translating_format
+                        .replacen("{}", &current.to_string(), 1)
+                        .replacen("{}", &total.to_string(), 1),
+                ),
                 Line::from(bar),
             ]
         }

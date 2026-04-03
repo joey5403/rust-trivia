@@ -95,7 +95,7 @@ static ENGLISH: LocaleStrings = LocaleStrings {
     loading_message: "Please wait while we fetch trivia questions",
 
     translating_title: "Translating Questions",
-    translating_format: "Translating Questions ({}/{})",
+    translating_format: "Translating Questions {}/{}",
 
     question_title: "Answers",
     answers_title: "Answers",
@@ -135,7 +135,7 @@ static CHINESE: LocaleStrings = LocaleStrings {
     loading_message: "正在获取答题题目，请稍候",
 
     translating_title: "正在翻译题目",
-    translating_format: "正在翻译题目 ({}/{})",
+    translating_format: "正在翻译题目 {}/{}",
 
     question_title: "问题",
     answers_title: "答案",
