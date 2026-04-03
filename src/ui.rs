@@ -74,7 +74,7 @@ fn draw_select_category(
     game: &Game,
     strings: &LocaleStrings,
 ) {
-    let categories = get_categories();
+    let categories = get_categories(game.locale);
     let mut items = vec![ListItem::new(format!(
         "{} {}",
         if game.category_index == 0 {

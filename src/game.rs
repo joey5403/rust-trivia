@@ -1,7 +1,38 @@
 use crate::api::{Category, TriviaApi, TriviaQuestion};
 use crate::locale::Locale;
-use crate::translation::Translator;
+use crate::translation::{translate_category_name, Translator};
 use anyhow::Result;
+use std::fs::OpenOptions;
+use std::io::Write;
+use std::path::PathBuf;
+use std::sync::Mutex;
+
+static LOG_PATH: Mutex<Option<PathBuf>> = Mutex::new(None);
+static DEBUG_ENABLED: Mutex<bool> = Mutex::new(false);
+
+pub fn init_log_file(path: PathBuf) {
+    let path_clone = path.clone();
+    LOG_PATH.lock().unwrap().replace(path);
+    if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path_clone) {
+        let _ = writeln!(f, "=== Game started ===");
+    }
+}
+
+pub fn set_debug(enabled: bool) {
+    *DEBUG_ENABLED.lock().unwrap() = enabled;
+}
+
+macro_rules! debug_log {
+    ($($arg:tt)*) => {
+        if *DEBUG_ENABLED.lock().unwrap() {
+            if let Some(path) = LOG_PATH.lock().unwrap().clone() {
+                if let Ok(mut f) = OpenOptions::new().create(true).append(true).open(path) {
+                    let _ = writeln!(f, "[DEBUG] {}", format!($($arg)*));
+                }
+            }
+        }
+    };
+}
 
 #[derive(Debug, Clone)]
 pub enum GameState {
@@ -24,52 +55,32 @@ pub struct TranslationProgress {
     pub total: u32,
 }
 
-pub fn get_categories() -> Vec<Category> {
+pub fn get_categories(locale: Locale) -> Vec<Category> {
     vec![
-        Category {
-            id: 9,
-            name: "General Knowledge".to_string(),
-        },
-        Category {
-            id: 10,
-            name: "Books".to_string(),
-        },
-        Category {
-            id: 11,
-            name: "Film".to_string(),
-        },
-        Category {
-            id: 12,
-            name: "Music".to_string(),
-        },
-        Category {
-            id: 17,
-            name: "Science & Nature".to_string(),
-        },
-        Category {
-            id: 18,
-            name: "Computers".to_string(),
-        },
-        Category {
-            id: 19,
-            name: "Mathematics".to_string(),
-        },
-        Category {
-            id: 21,
-            name: "Sports".to_string(),
-        },
-        Category {
-            id: 22,
-            name: "Geography".to_string(),
-        },
-        Category {
-            id: 23,
-            name: "History".to_string(),
-        },
-        Category {
-            id: 27,
-            name: "Animals".to_string(),
-        },
+        Category { id: 9,  name: translate_category_name("General Knowledge", locale) },
+        Category { id: 10, name: translate_category_name("Entertainment: Books", locale) },
+        Category { id: 11, name: translate_category_name("Entertainment: Film", locale) },
+        Category { id: 12, name: translate_category_name("Entertainment: Music", locale) },
+        Category { id: 13, name: translate_category_name("Entertainment: Musicals & Theatres", locale) },
+        Category { id: 14, name: translate_category_name("Entertainment: Television", locale) },
+        Category { id: 15, name: translate_category_name("Entertainment: Video Games", locale) },
+        Category { id: 16, name: translate_category_name("Entertainment: Board Games", locale) },
+        Category { id: 17, name: translate_category_name("Science & Nature", locale) },
+        Category { id: 18, name: translate_category_name("Science: Computers", locale) },
+        Category { id: 19, name: translate_category_name("Science: Mathematics", locale) },
+        Category { id: 20, name: translate_category_name("Mythology", locale) },
+        Category { id: 21, name: translate_category_name("Sports", locale) },
+        Category { id: 22, name: translate_category_name("Geography", locale) },
+        Category { id: 23, name: translate_category_name("History", locale) },
+        Category { id: 24, name: translate_category_name("Politics", locale) },
+        Category { id: 25, name: translate_category_name("Art", locale) },
+        Category { id: 26, name: translate_category_name("Celebrities", locale) },
+        Category { id: 27, name: translate_category_name("Animals", locale) },
+        Category { id: 28, name: translate_category_name("Vehicles", locale) },
+        Category { id: 29, name: translate_category_name("Entertainment: Comics", locale) },
+        Category { id: 30, name: translate_category_name("Science: Gadgets", locale) },
+        Category { id: 31, name: translate_category_name("Entertainment: Japanese Anime & Manga", locale) },
+        Category { id: 32, name: translate_category_name("Entertainment: Cartoon & Animations", locale) },
     ]
 }
 
@@ -87,6 +98,7 @@ pub struct Game {
     pub category_index: usize,
     pub locale: Locale,
     pub loading_phase: Option<LoadingPhase>,
+    pub translation_done: bool,
 }
 
 impl Game {
@@ -109,6 +121,7 @@ impl Game {
             category_index: 0,
             locale,
             loading_phase: None,
+            translation_done: false,
         })
     }
 
@@ -118,6 +131,7 @@ impl Game {
         self.score = 0;
         self.current_question_index = 0;
         self.answer_results.clear();
+        self.translation_done = false;
 
         let category_id = self.selected_category.as_ref().map(|c| c.id);
         let questions = match self
@@ -140,40 +154,89 @@ impl Game {
         };
 
         if self.locale == Locale::Zh && Translator::is_available() {
+            debug_log!("Starting translation flow");
             self.loading_phase = Some(LoadingPhase::Translating(None));
             let total = questions.len() as u32;
+            debug_log!("Starting translation loop, total: {}", total);
             match Translator::new() {
-                Ok(translator) => {
-                    let mut translated = Vec::new();
-                    for q in questions {
-                        match translator.translate_question(&q, self.locale).await {
-                            Ok(tq) => translated.push(tq),
-                            Err(e) => {
-                                eprintln!("Translation failed for question: {}", e);
-                                translated.push(q);
+                Ok(_translator) => {
+                    let locale = self.locale;
+                    let (tx, mut rx) = tokio::sync::mpsc::channel::<(Vec<TriviaQuestion>, Option<LoadingPhase>, bool)>(1);
+                    let tx2 = tx.clone();
+                    
+                    tokio::spawn(async move {
+                        debug_log!("Spawned translation task");
+                        let total = questions.len() as u32;
+                        let mut handles = Vec::new();
+                        
+                        for (i, q) in questions.into_iter().enumerate() {
+                            let translator = Translator::new().unwrap();
+                            let locale = locale;
+                            
+                            let handle = tokio::spawn(async move {
+                                let tq = match translator.translate_question(&q, locale).await {
+                                    Ok(tq) => tq,
+                                    Err(e) => {
+                                        debug_log!("Translation failed for question {}: {}", i + 1, e);
+                                        q
+                                    }
+                                };
+                                (i, tq)
+                            });
+                            handles.push(handle);
+                        }
+                        
+                        let mut translated = Vec::new();
+                        for handle in handles {
+                            if let Ok((_, tq)) = handle.await {
+                                debug_log!("Translation completed: {}/{}", translated.len() + 1, total);
+                                translated.push(tq);
+                                let phase = LoadingPhase::Translating(Some(TranslationProgress {
+                                    current: translated.len() as u32,
+                                    total,
+                                }));
+                                let _ = tx2.send((translated.clone(), Some(phase), false)).await;
                             }
                         }
-                        self.loading_phase = Some(LoadingPhase::Translating(Some(TranslationProgress {
-                            current: translated.len() as u32 + 1,
-                            total,
-                        })));
+                        let _ = tx2.send((translated, None, true)).await;
+                    });
+                    
+                    loop {
+                        tokio::select! {
+                            result = rx.recv() => {
+                                debug_log!("Received from channel: {:?}", result);
+                                if let Some((q, phase, done)) = result {
+                                    self.questions = q;
+                                    self.loading_phase = phase;
+                                    self.translation_done = done;
+                                    debug_log!("Updated game state: translation_done={}", done);
+                                    if done {
+                                        self.state = GameState::Question;
+                                        break;
+                                    }
+                                }
+                            }
+                            _ = tokio::time::sleep(std::time::Duration::from_millis(100)) => {
+                                debug_log!("Timeout, no message received");
+                                continue;
+                            }
+                        }
                     }
-                    self.questions = translated;
-                    self.loading_phase = None;
                 }
                 Err(e) => {
-                    eprintln!("Failed to create translator: {}", e);
+                    debug_log!("Failed to create translator: {}", e);
                     self.questions = questions;
                     self.loading_phase = None;
+                    self.translation_done = true;
                 }
             }
         } else {
             self.questions = questions;
             self.loading_phase = None;
+            self.translation_done = true;
         }
 
-        self.state = GameState::Question;
-        self.loading_phase = None;
+        // Don't transition to Question yet - wait for translation to complete
         Ok(())
     }
 
@@ -219,7 +282,7 @@ impl Game {
     }
 
     pub fn confirm_category(&mut self) {
-        let categories = get_categories();
+        let categories = get_categories(self.locale);
         if self.category_index == 0 {
             self.selected_category = None;
         } else {
@@ -231,7 +294,7 @@ impl Game {
     }
 
     pub fn navigate_category(&mut self, down: bool) {
-        let max = get_categories().len();
+        let max = get_categories(self.locale).len();
         if down {
             self.category_index = (self.category_index + 1) % (max + 1);
         } else {

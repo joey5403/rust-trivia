@@ -14,18 +14,43 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use tokio::time::Duration;
 
-use crate::game::{Game, GameState};
-use crate::locale::{get_locale_from_args, Locale};
+use crate::game::{init_log_file, set_debug, Game, GameState};
+use crate::locale::Locale;
+use std::path::PathBuf;
+
+fn parse_args() -> (Locale, bool) {
+    let args: Vec<String> = std::env::args().collect();
+    let mut locale = Locale::En;
+    let mut debug = false;
+    
+    for arg in &args {
+        if arg == "--lang=zh" || arg == "--language=chinese" {
+            locale = Locale::Zh;
+        }
+        if arg == "--debug" {
+            debug = true;
+        }
+    }
+    
+    (locale, debug)
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let (locale, debug) = parse_args();
+    
+    let log_path = std::env::var("LOG_FILE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("rust-trivia.log"));
+    init_log_file(log_path);
+    set_debug(debug);
+    
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let locale = get_locale_from_args();
     let mut game = Game::new(locale).await?;
     let result = run_game(&mut terminal, &mut game, locale).await;
 
