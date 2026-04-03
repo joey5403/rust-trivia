@@ -1,5 +1,7 @@
-use anyhow::Result;
 use crate::api::{Category, TriviaApi, TriviaQuestion};
+use crate::locale::Locale;
+use crate::translation::Translator;
+use anyhow::Result;
 
 #[derive(Debug, Clone)]
 pub enum GameState {
@@ -10,19 +12,64 @@ pub enum GameState {
     GameOver,
 }
 
+#[derive(Debug, Clone)]
+pub enum LoadingPhase {
+    Fetching,
+    Translating(Option<TranslationProgress>),
+}
+
+#[derive(Debug, Clone)]
+pub struct TranslationProgress {
+    pub current: u32, // 1-indexed count
+    pub total: u32,
+}
+
 pub fn get_categories() -> Vec<Category> {
     vec![
-        Category { id: 9, name: "General Knowledge".to_string() },
-        Category { id: 10, name: "Books".to_string() },
-        Category { id: 11, name: "Film".to_string() },
-        Category { id: 12, name: "Music".to_string() },
-        Category { id: 17, name: "Science & Nature".to_string() },
-        Category { id: 18, name: "Computers".to_string() },
-        Category { id: 19, name: "Mathematics".to_string() },
-        Category { id: 21, name: "Sports".to_string() },
-        Category { id: 22, name: "Geography".to_string() },
-        Category { id: 23, name: "History".to_string() },
-        Category { id: 27, name: "Animals".to_string() },
+        Category {
+            id: 9,
+            name: "General Knowledge".to_string(),
+        },
+        Category {
+            id: 10,
+            name: "Books".to_string(),
+        },
+        Category {
+            id: 11,
+            name: "Film".to_string(),
+        },
+        Category {
+            id: 12,
+            name: "Music".to_string(),
+        },
+        Category {
+            id: 17,
+            name: "Science & Nature".to_string(),
+        },
+        Category {
+            id: 18,
+            name: "Computers".to_string(),
+        },
+        Category {
+            id: 19,
+            name: "Mathematics".to_string(),
+        },
+        Category {
+            id: 21,
+            name: "Sports".to_string(),
+        },
+        Category {
+            id: 22,
+            name: "Geography".to_string(),
+        },
+        Category {
+            id: 23,
+            name: "History".to_string(),
+        },
+        Category {
+            id: 27,
+            name: "Animals".to_string(),
+        },
     ]
 }
 
@@ -38,10 +85,16 @@ pub struct Game {
     pub answer_results: Vec<bool>,
     pub selected_category: Option<Category>,
     pub category_index: usize,
+    pub locale: Locale,
+    pub loading_phase: Option<LoadingPhase>,
 }
 
 impl Game {
-    pub async fn new() -> Result<Self> {
+    pub async fn new(locale: Locale) -> Result<Self> {
+        if locale == Locale::Zh && !Translator::is_available() {
+            eprintln!("Warning: OPENAI_API_KEY not set, questions will remain in English");
+        }
+
         Ok(Self {
             state: GameState::Menu,
             api: TriviaApi::new(),
@@ -54,6 +107,8 @@ impl Game {
             answer_results: Vec::new(),
             selected_category: None,
             category_index: 0,
+            locale,
+            loading_phase: None,
         })
     }
 
@@ -61,30 +116,53 @@ impl Game {
         self.state = GameState::Loading;
         self.score = 0;
         self.current_question_index = 0;
-        self.answer_results.clear(); // Clear previous results
-        
-        // Fetch questions from API
+        self.answer_results.clear();
+
         let category_id = self.selected_category.as_ref().map(|c| c.id);
-        match self.api.fetch_questions(self.total_questions, category_id).await {
-            Ok(questions) => {
-                self.questions = questions;
-                self.state = GameState::Question;
-            }
+        let questions = match self
+            .api
+            .fetch_questions(self.total_questions, category_id)
+            .await
+        {
+            Ok(q) => q,
             Err(e) => {
-                // For demo purposes, we'll create a fallback question
                 eprintln!("Failed to fetch questions: {}", e);
-                self.questions = vec![TriviaQuestion {
+                vec![TriviaQuestion {
                     category: "General Knowledge".to_string(),
                     r#type: "multiple".to_string(),
                     difficulty: "easy".to_string(),
                     question: "What is 2 + 2?".to_string(),
                     correct_answer: "4".to_string(),
                     incorrect_answers: vec!["2".to_string(), "3".to_string(), "5".to_string()],
-                }];
-                self.state = GameState::Question;
+                }]
             }
+        };
+
+        if self.locale == Locale::Zh && Translator::is_available() {
+            match Translator::new() {
+                Ok(translator) => {
+                    let mut translated = Vec::new();
+                    for q in questions {
+                        match translator.translate_question(&q, self.locale).await {
+                            Ok(tq) => translated.push(tq),
+                            Err(e) => {
+                                eprintln!("Translation failed for question: {}", e);
+                                translated.push(q);
+                            }
+                        }
+                    }
+                    self.questions = translated;
+                }
+                Err(e) => {
+                    eprintln!("Failed to create translator: {}", e);
+                    self.questions = questions;
+                }
+            }
+        } else {
+            self.questions = questions;
         }
-        
+
+        self.state = GameState::Question;
         Ok(())
     }
 
@@ -93,15 +171,12 @@ impl Game {
             let correct_index = current_question.get_correct_index();
             self.last_answer_correct = answer_index == correct_index;
             self.selected_answer = Some(answer_index);
-            
+
             if self.last_answer_correct {
                 self.score += 1;
             }
-            
-            // Track the result of this answer
+
             self.answer_results.push(self.last_answer_correct);
-            
-            // Directly go to next question without showing result one by one
             self.next_question().await?;
         }
         Ok(())
@@ -110,13 +185,13 @@ impl Game {
     pub async fn next_question(&mut self) -> Result<()> {
         self.current_question_index += 1;
         self.selected_answer = None;
-        
+
         if self.current_question_index >= self.questions.len() {
             self.state = GameState::GameOver;
         } else {
             self.state = GameState::Question;
         }
-        
+
         Ok(())
     }
 
