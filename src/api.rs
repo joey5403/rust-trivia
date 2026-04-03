@@ -17,6 +17,7 @@ pub struct TriviaResponse {
 #[derive(Debug, Deserialize, Clone)]
 pub struct TriviaQuestion {
     pub category: String,
+    #[allow(dead_code)]
     pub r#type: String,
     pub difficulty: String,
     pub question: String,
