@@ -1,5 +1,7 @@
 # Rust Trivia Game
 
+![Demo](demo.gif)
+
 A terminal-based trivia game built with Rust, featuring a beautiful TUI powered by ratatui and real questions from the OpenTDB API.
 
 ## Features
