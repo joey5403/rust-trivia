@@ -234,9 +234,9 @@ impl Game {
             self.questions = questions;
             self.loading_phase = None;
             self.translation_done = true;
+            self.state = GameState::Question;
         }
 
-        // Don't transition to Question yet - wait for translation to complete
         Ok(())
     }
 
