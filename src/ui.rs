@@ -1,4 +1,5 @@
 use crate::game::{get_categories, Game, GameState};
+use crate::locale::{Locale, LocaleStrings};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
@@ -7,7 +8,8 @@ use ratatui::{
     Frame,
 };
 
-pub fn draw(f: &mut Frame, game: &Game) {
+pub fn draw(f: &mut Frame, game: &Game, locale: Locale) {
+    let strings = LocaleStrings::get(locale);
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
@@ -17,8 +19,7 @@ pub fn draw(f: &mut Frame, game: &Game) {
         ])
         .split(f.area());
 
-    // Header
-    let header = Paragraph::new("🧠 Rust Trivia Game 🧠")
+    let header = Paragraph::new(strings.header_title)
         .style(
             Style::default()
                 .fg(Color::Cyan)
@@ -28,22 +29,20 @@ pub fn draw(f: &mut Frame, game: &Game) {
         .block(Block::default().borders(Borders::ALL));
     f.render_widget(header, chunks[0]);
 
-    // Main content
     match game.state {
-        GameState::Menu => draw_menu(f, chunks[1]),
-        GameState::SelectCategory => draw_select_category(f, chunks[1], game),
-        GameState::Loading => draw_loading(f, chunks[1]),
-        GameState::Question => draw_question(f, chunks[1], game),
-        GameState::GameOver => draw_game_over(f, chunks[1], game),
+        GameState::Menu => draw_menu(f, chunks[1], strings),
+        GameState::SelectCategory => draw_select_category(f, chunks[1], game, strings),
+        GameState::Loading => draw_loading(f, chunks[1], strings),
+        GameState::Question => draw_question(f, chunks[1], game, strings),
+        GameState::GameOver => draw_game_over(f, chunks[1], game, strings),
     }
 
-    // Footer
     let footer_text = match game.state {
-        GameState::Menu => "Press ENTER to start • Press 'q' to quit",
-        GameState::SelectCategory => "↑/↓ to navigate • ENTER to confirm • 'q' to quit",
-        GameState::Question => "Press 1-4 to select answer • Press 'q' to quit",
-        GameState::GameOver => "Press ENTER to play again • Press 'q' to quit",
-        _ => "Press 'q' to quit",
+        GameState::Menu => strings.footer_menu,
+        GameState::SelectCategory => strings.footer_select_category,
+        GameState::Question => strings.footer_question,
+        GameState::GameOver => strings.footer_game_over,
+        _ => strings.footer_quit,
     };
 
     let footer = Paragraph::new(footer_text)
@@ -53,14 +52,14 @@ pub fn draw(f: &mut Frame, game: &Game) {
     f.render_widget(footer, chunks[2]);
 }
 
-fn draw_menu(f: &mut Frame, area: ratatui::layout::Rect) {
+fn draw_menu(f: &mut Frame, area: ratatui::layout::Rect, strings: &LocaleStrings) {
     let text = vec![
         Line::from(""),
-        Line::from("Welcome to Rust Trivia!"),
+        Line::from(strings.welcome_title),
         Line::from(""),
-        Line::from("Test your knowledge with questions from OpenTDB"),
+        Line::from(strings.welcome_subtitle),
         Line::from(""),
-        Line::from("Press ENTER to select a category"),
+        Line::from(strings.menu_instruction),
     ];
 
     let paragraph = Paragraph::new(text)
@@ -69,15 +68,21 @@ fn draw_menu(f: &mut Frame, area: ratatui::layout::Rect) {
     f.render_widget(paragraph, area);
 }
 
-fn draw_select_category(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
+fn draw_select_category(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    game: &Game,
+    strings: &LocaleStrings,
+) {
     let categories = get_categories();
     let mut items = vec![ListItem::new(format!(
-        "{} All Categories",
+        "{} {}",
         if game.category_index == 0 {
             "● "
         } else {
             "  "
-        }
+        },
+        strings.all_categories
     ))];
 
     for (i, cat) in categories.iter().enumerate() {
@@ -93,19 +98,19 @@ fn draw_select_category(f: &mut Frame, area: ratatui::layout::Rect, game: &Game)
         .block(
             Block::default()
                 .borders(Borders::ALL)
-                .title("Select Category"),
+                .title(strings.select_category_title),
         )
         .style(Style::default());
 
     f.render_widget(list, area);
 }
 
-fn draw_loading(f: &mut Frame, area: ratatui::layout::Rect) {
+fn draw_loading(f: &mut Frame, area: ratatui::layout::Rect, strings: &LocaleStrings) {
     let text = vec![
         Line::from(""),
-        Line::from("Loading questions..."),
+        Line::from(strings.loading_title),
         Line::from(""),
-        Line::from("Please wait while we fetch trivia questions"),
+        Line::from(strings.loading_message),
     ];
 
     let paragraph = Paragraph::new(text)
@@ -114,7 +119,7 @@ fn draw_loading(f: &mut Frame, area: ratatui::layout::Rect) {
     f.render_widget(paragraph, area);
 }
 
-fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
+fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game, strings: &LocaleStrings) {
     if let Some(question) = game.current_question() {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
@@ -125,10 +130,8 @@ fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
             ])
             .split(area);
 
-        // Colorful progress indicator showing individual results
-        draw_colored_progress(f, chunks[0], game);
+        draw_colored_progress(f, chunks[0], game, strings);
 
-        // Question
         let question_text = decode_html(&question.question);
         let question_widget = Paragraph::new(question_text)
             .wrap(Wrap { trim: true })
@@ -140,7 +143,6 @@ fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
             .alignment(Alignment::Left);
         f.render_widget(question_widget, chunks[1]);
 
-        // Answers
         let answers = question.get_all_answers();
         let answer_items: Vec<ListItem> = answers
             .iter()
@@ -152,13 +154,22 @@ fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
             .collect();
 
         let answers_widget = List::new(answer_items)
-            .block(Block::default().borders(Borders::ALL).title("Answers"))
+            .block(
+                Block::default()
+                    .borders(Borders::ALL)
+                    .title(strings.answers_title),
+            )
             .style(Style::default().fg(Color::White));
         f.render_widget(answers_widget, chunks[2]);
     }
 }
 
-fn draw_game_over(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
+fn draw_game_over(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    game: &Game,
+    strings: &LocaleStrings,
+) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(7), Constraint::Min(0)])
@@ -167,16 +178,17 @@ fn draw_game_over(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
     let score_percent = (game.score as f64 / game.questions.len() as f64) * 100.0;
 
     let header_text = vec![
-        Line::from("🎉 Game Over! 🎉"),
+        Line::from(strings.game_over_title),
         Line::from(""),
         Line::from(format!(
-            "Final Score: {}/{}",
+            "{} {}/{}",
+            strings.final_score,
             game.score,
             game.questions.len()
         )),
-        Line::from(format!("Percentage: {:.1}%", score_percent)),
+        Line::from(format!("{} {:.1}%", strings.percentage, score_percent)),
         Line::from(""),
-        Line::from(get_performance_message(score_percent)),
+        Line::from(get_performance_message(score_percent, strings)),
     ];
 
     let header_paragraph = Paragraph::new(header_text)
@@ -219,13 +231,13 @@ fn draw_game_over(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
     f.render_widget(questions_list, chunks[1]);
 }
 
-fn get_performance_message(percentage: f64) -> &'static str {
+fn get_performance_message(percentage: f64, strings: &LocaleStrings) -> &'static str {
     match percentage {
-        p if p >= 90.0 => "🏆 Excellent! You're a trivia master!",
-        p if p >= 80.0 => "🌟 Great job! Very impressive!",
-        p if p >= 70.0 => "👍 Good work! Keep it up!",
-        p if p >= 60.0 => "😊 Not bad! Room for improvement!",
-        _ => "😅 Better luck next time!",
+        p if p >= 90.0 => strings.perf_excellent,
+        p if p >= 80.0 => strings.perf_great,
+        p if p >= 70.0 => strings.perf_good,
+        p if p >= 60.0 => strings.perf_not_bad,
+        _ => strings.perf_better_luck,
     }
 }
 
@@ -238,10 +250,14 @@ fn decode_html(text: &str) -> String {
         .replace("&apos;", "'")
 }
 
-fn draw_colored_progress(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
+fn draw_colored_progress(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    game: &Game,
+    strings: &LocaleStrings,
+) {
     let (current, total) = game.progress();
 
-    // Create spans with appropriate colors
     let mut spans = Vec::new();
 
     for (i, &is_correct) in game.answer_results.iter().enumerate() {
@@ -254,20 +270,17 @@ fn draw_colored_progress(f: &mut Frame, area: ratatui::layout::Rect, game: &Game
         spans.push(Span::styled(symbol, Style::default().fg(color)));
     }
 
-    // Add current question indicator if we're still in the game
     if game.current_question_index < game.questions.len() {
         if !game.answer_results.is_empty() {
             spans.push(Span::raw(" "));
         }
-        spans.push(Span::styled("●", Style::default().fg(Color::Yellow))); // Current question
+        spans.push(Span::styled("●", Style::default().fg(Color::Yellow)));
 
-        // Add remaining questions
         for _ in (game.current_question_index + 1)..game.questions.len() {
             spans.push(Span::raw(" "));
             spans.push(Span::styled("○", Style::default().fg(Color::Gray)));
         }
     } else {
-        // Game is over, show remaining as gray if any
         for i in game.answer_results.len()..game.questions.len() {
             if i > 0 || !game.answer_results.is_empty() {
                 spans.push(Span::raw(" "));
@@ -287,7 +300,11 @@ fn draw_colored_progress(f: &mut Frame, area: ratatui::layout::Rect, game: &Game
 
     let progress_paragraph = Paragraph::new(vec![progress_line, Line::from(score_info)])
         .alignment(Alignment::Center)
-        .block(Block::default().borders(Borders::ALL).title("Progress"));
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(strings.progress_title),
+        );
 
     f.render_widget(progress_paragraph, area);
 }

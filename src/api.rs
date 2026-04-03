@@ -53,7 +53,11 @@ impl TriviaApi {
         }
     }
 
-    pub async fn fetch_questions(&self, amount: u32, category: Option<u32>) -> Result<Vec<TriviaQuestion>> {
+    pub async fn fetch_questions(
+        &self,
+        amount: u32,
+        category: Option<u32>,
+    ) -> Result<Vec<TriviaQuestion>> {
         let url = if let Some(cat_id) = category {
             format!(
                 "https://opentdb.com/api.php?amount={}&category={}&type=multiple",

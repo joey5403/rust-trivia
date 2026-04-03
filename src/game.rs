@@ -114,6 +114,7 @@ impl Game {
 
     pub async fn start_game(&mut self) -> Result<()> {
         self.state = GameState::Loading;
+        self.loading_phase = Some(LoadingPhase::Fetching);
         self.score = 0;
         self.current_question_index = 0;
         self.answer_results.clear();
@@ -139,6 +140,8 @@ impl Game {
         };
 
         if self.locale == Locale::Zh && Translator::is_available() {
+            self.loading_phase = Some(LoadingPhase::Translating(None));
+            let total = questions.len() as u32;
             match Translator::new() {
                 Ok(translator) => {
                     let mut translated = Vec::new();
@@ -150,19 +153,27 @@ impl Game {
                                 translated.push(q);
                             }
                         }
+                        self.loading_phase = Some(LoadingPhase::Translating(Some(TranslationProgress {
+                            current: translated.len() as u32 + 1,
+                            total,
+                        })));
                     }
                     self.questions = translated;
+                    self.loading_phase = None;
                 }
                 Err(e) => {
                     eprintln!("Failed to create translator: {}", e);
                     self.questions = questions;
+                    self.loading_phase = None;
                 }
             }
         } else {
             self.questions = questions;
+            self.loading_phase = None;
         }
 
         self.state = GameState::Question;
+        self.loading_phase = None;
         Ok(())
     }
 

@@ -1,5 +1,7 @@
 mod api;
 mod game;
+mod locale;
+mod translation;
 mod ui;
 
 use anyhow::Result;
@@ -8,29 +10,25 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use ratatui::{
-    backend::CrosstermBackend,
-    Terminal,
-};
+use ratatui::{backend::CrosstermBackend, Terminal};
 use std::io;
 use tokio::time::Duration;
 
 use crate::game::{Game, GameState};
+use crate::locale::{get_locale_from_args, Locale};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Setup terminal
     enable_raw_mode()?;
     let mut stdout = io::stdout();
     execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Create and run the game
-    let mut game = Game::new().await?;
-    let result = run_game(&mut terminal, &mut game).await;
+    let locale = get_locale_from_args();
+    let mut game = Game::new(locale).await?;
+    let result = run_game(&mut terminal, &mut game, locale).await;
 
-    // Restore terminal
     disable_raw_mode()?;
     execute!(
         terminal.backend_mut(),
@@ -45,11 +43,11 @@ async fn main() -> Result<()> {
 async fn run_game<B: ratatui::backend::Backend>(
     terminal: &mut Terminal<B>,
     game: &mut Game,
+    locale: Locale,
 ) -> Result<()> {
     loop {
-        terminal.draw(|f| ui::draw(f, game))?;
+        terminal.draw(|f| ui::draw(f, game, locale))?;
 
-        // Handle input
         if event::poll(Duration::from_millis(100))? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
@@ -62,21 +60,19 @@ async fn run_game<B: ratatui::backend::Backend>(
                             }
                         }
                     }
-                    KeyCode::Enter => {
-                        match game.state {
-                            GameState::Menu => {
-                                game.state = GameState::SelectCategory;
-                            }
-                            GameState::SelectCategory => {
-                                game.confirm_category();
-                                game.start_game().await?;
-                            }
-                            GameState::GameOver => {
-                                game.reset_game().await?;
-                            }
-                            _ => {}
+                    KeyCode::Enter => match game.state {
+                        GameState::Menu => {
+                            game.state = GameState::SelectCategory;
                         }
-                    }
+                        GameState::SelectCategory => {
+                            game.confirm_category();
+                            game.start_game().await?;
+                        }
+                        GameState::GameOver => {
+                            game.reset_game().await?;
+                        }
+                        _ => {}
+                    },
                     KeyCode::Down => {
                         if matches!(game.state, GameState::SelectCategory) {
                             game.navigate_category(true);
@@ -91,7 +87,6 @@ async fn run_game<B: ratatui::backend::Backend>(
                 }
             }
         }
-
     }
 
     Ok(())
