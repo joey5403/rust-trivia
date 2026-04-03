@@ -64,11 +64,27 @@ async fn run_game<B: ratatui::backend::Backend>(
                     }
                     KeyCode::Enter => {
                         match game.state {
-                            GameState::Menu => game.start_game().await?,
+                            GameState::Menu => {
+                                game.state = GameState::SelectCategory;
+                            }
+                            GameState::SelectCategory => {
+                                game.confirm_category();
+                                game.start_game().await?;
+                            }
                             GameState::GameOver => {
                                 game.reset_game().await?;
                             }
                             _ => {}
+                        }
+                    }
+                    KeyCode::Down => {
+                        if matches!(game.state, GameState::SelectCategory) {
+                            game.navigate_category(true);
+                        }
+                    }
+                    KeyCode::Up => {
+                        if matches!(game.state, GameState::SelectCategory) {
+                            game.navigate_category(false);
                         }
                     }
                     _ => {}

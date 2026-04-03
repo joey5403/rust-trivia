@@ -2,6 +2,12 @@ use anyhow::Result;
 use reqwest::Client;
 use serde::Deserialize;
 
+#[derive(Debug, Clone)]
+pub struct Category {
+    pub id: u32,
+    pub name: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct TriviaResponse {
     pub response_code: u32,
@@ -46,11 +52,18 @@ impl TriviaApi {
         }
     }
 
-    pub async fn fetch_questions(&self, amount: u32) -> Result<Vec<TriviaQuestion>> {
-        let url = format!(
-            "https://opentdb.com/api.php?amount={}&type=multiple",
-            amount
-        );
+    pub async fn fetch_questions(&self, amount: u32, category: Option<u32>) -> Result<Vec<TriviaQuestion>> {
+        let url = if let Some(cat_id) = category {
+            format!(
+                "https://opentdb.com/api.php?amount={}&category={}&type=multiple",
+                amount, cat_id
+            )
+        } else {
+            format!(
+                "https://opentdb.com/api.php?amount={}&type=multiple",
+                amount
+            )
+        };
 
         let response = self
             .client

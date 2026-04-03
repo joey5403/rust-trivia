@@ -1,13 +1,30 @@
 use anyhow::Result;
-use crate::api::{TriviaApi, TriviaQuestion};
+use crate::api::{Category, TriviaApi, TriviaQuestion};
 
 #[derive(Debug, Clone)]
 pub enum GameState {
     Menu,
+    SelectCategory,
     Loading,
     Question,
     ShowResult,
     GameOver,
+}
+
+pub fn get_categories() -> Vec<Category> {
+    vec![
+        Category { id: 9, name: "General Knowledge".to_string() },
+        Category { id: 10, name: "Books".to_string() },
+        Category { id: 11, name: "Film".to_string() },
+        Category { id: 12, name: "Music".to_string() },
+        Category { id: 17, name: "Science & Nature".to_string() },
+        Category { id: 18, name: "Computers".to_string() },
+        Category { id: 19, name: "Mathematics".to_string() },
+        Category { id: 21, name: "Sports".to_string() },
+        Category { id: 22, name: "Geography".to_string() },
+        Category { id: 23, name: "History".to_string() },
+        Category { id: 27, name: "Animals".to_string() },
+    ]
 }
 
 pub struct Game {
@@ -19,7 +36,9 @@ pub struct Game {
     pub total_questions: u32,
     pub last_answer_correct: bool,
     pub selected_answer: Option<usize>,
-    pub answer_results: Vec<bool>, // Track correct/incorrect for each question
+    pub answer_results: Vec<bool>,
+    pub selected_category: Option<Category>,
+    pub category_index: usize,
 }
 
 impl Game {
@@ -33,7 +52,9 @@ impl Game {
             total_questions: 10,
             last_answer_correct: false,
             selected_answer: None,
-            answer_results: Vec::new(), // Initialize with an empty vector
+            answer_results: Vec::new(),
+            selected_category: None,
+            category_index: 0,
         })
     }
 
@@ -44,7 +65,8 @@ impl Game {
         self.answer_results.clear(); // Clear previous results
         
         // Fetch questions from API
-        match self.api.fetch_questions(self.total_questions).await {
+        let category_id = self.selected_category.as_ref().map(|c| c.id);
+        match self.api.fetch_questions(self.total_questions, category_id).await {
             Ok(questions) => {
                 self.questions = questions;
                 self.state = GameState::Question;
@@ -104,8 +126,35 @@ impl Game {
         self.current_question_index = 0;
         self.score = 0;
         self.selected_answer = None;
-        self.answer_results.clear(); // Clear the answer results
+        self.answer_results.clear();
+        self.selected_category = None;
+        self.category_index = 0;
         Ok(())
+    }
+
+    pub fn confirm_category(&mut self) {
+        let categories = get_categories();
+        if self.category_index == 0 {
+            self.selected_category = None;
+        } else {
+            let idx = self.category_index - 1;
+            if idx < categories.len() {
+                self.selected_category = Some(categories[idx].clone());
+            }
+        }
+    }
+
+    pub fn navigate_category(&mut self, down: bool) {
+        let max = get_categories().len();
+        if down {
+            self.category_index = (self.category_index + 1) % (max + 1);
+        } else {
+            if self.category_index == 0 {
+                self.category_index = max;
+            } else {
+                self.category_index -= 1;
+            }
+        }
     }
 
     pub fn current_question(&self) -> Option<&TriviaQuestion> {
