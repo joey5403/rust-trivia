@@ -38,6 +38,10 @@ pub struct LocaleStrings {
     pub loading_title: &'static str,
     pub loading_message: &'static str,
 
+    // Translating
+    pub translating_title: &'static str,
+    pub translating_format: &'static str,
+
     // Question
     pub question_title: &'static str,
     pub answers_title: &'static str,
@@ -90,6 +94,9 @@ static ENGLISH: LocaleStrings = LocaleStrings {
     loading_title: "Loading",
     loading_message: "Please wait while we fetch trivia questions",
 
+    translating_title: "Translating Questions",
+    translating_format: "Translating Questions ({}/{})",
+
     question_title: "Answers",
     answers_title: "Answers",
     progress_title: "Progress",
@@ -126,6 +133,9 @@ static CHINESE: LocaleStrings = LocaleStrings {
 
     loading_title: "加载中",
     loading_message: "正在获取答题题目，请稍候",
+
+    translating_title: "正在翻译题目",
+    translating_format: "正在翻译题目 ({}/{})",
 
     question_title: "问题",
     answers_title: "答案",
