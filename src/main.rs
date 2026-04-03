@@ -13,7 +13,7 @@ use ratatui::{
     Terminal,
 };
 use std::io;
-use tokio::time::{sleep, Duration};
+use tokio::time::Duration;
 
 use crate::game::{Game, GameState};
 
@@ -92,11 +92,6 @@ async fn run_game<B: ratatui::backend::Backend>(
             }
         }
 
-        // Auto-advance after showing result
-        if matches!(game.state, GameState::ShowResult) {
-            sleep(Duration::from_secs(2)).await;
-            game.next_question().await?;
-        }
     }
 
     Ok(())

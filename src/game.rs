@@ -7,7 +7,6 @@ pub enum GameState {
     SelectCategory,
     Loading,
     Question,
-    ShowResult,
     GameOver,
 }
 
@@ -102,7 +101,8 @@ impl Game {
             // Track the result of this answer
             self.answer_results.push(self.last_answer_correct);
             
-            self.state = GameState::ShowResult;
+            // Directly go to next question without showing result one by one
+            self.next_question().await?;
         }
         Ok(())
     }

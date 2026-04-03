@@ -34,7 +34,6 @@ pub fn draw(f: &mut Frame, game: &Game) {
         GameState::SelectCategory => draw_select_category(f, chunks[1], game),
         GameState::Loading => draw_loading(f, chunks[1]),
         GameState::Question => draw_question(f, chunks[1], game),
-        GameState::ShowResult => draw_result(f, chunks[1], game),
         GameState::GameOver => draw_game_over(f, chunks[1], game),
     }
 
@@ -156,57 +155,6 @@ fn draw_question(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
             .block(Block::default().borders(Borders::ALL).title("Answers"))
             .style(Style::default().fg(Color::White));
         f.render_widget(answers_widget, chunks[2]);
-    }
-}
-
-fn draw_result(f: &mut Frame, area: ratatui::layout::Rect, game: &Game) {
-    if let Some(question) = game.current_question() {
-        let chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([
-                Constraint::Length(3),
-                Constraint::Min(5),
-                Constraint::Min(8),
-            ])
-            .split(area);
-
-        // Colorful progress indicator showing individual results
-        draw_colored_progress(f, chunks[0], game);
-
-        // Result
-        let result_text = if game.last_answer_correct {
-            "✅ Correct!"
-        } else {
-            "❌ Incorrect!"
-        };
-        let result_color = if game.last_answer_correct {
-            Color::Green
-        } else {
-            Color::Red
-        };
-
-        let result_widget = Paragraph::new(result_text)
-            .style(
-                Style::default()
-                    .fg(result_color)
-                    .add_modifier(Modifier::BOLD),
-            )
-            .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL).title("Result"));
-        f.render_widget(result_widget, chunks[1]);
-
-        // Show correct answer
-        let correct_answer = decode_html(&question.correct_answer);
-        let correct_text = format!("The correct answer was: {}", correct_answer);
-        let correct_widget = Paragraph::new(correct_text)
-            .wrap(Wrap { trim: true })
-            .alignment(Alignment::Center)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .title("Correct Answer"),
-            );
-        f.render_widget(correct_widget, chunks[2]);
     }
 }
 
