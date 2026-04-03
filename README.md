@@ -5,8 +5,10 @@ A terminal-based trivia game built with Rust, featuring a beautiful TUI powered 
 ## Features
 
 - **Interactive Terminal UI**: Built with ratatui for a polished terminal experience
-- **Category Selection**: Choose from 11 trivia categories or play all categories
+- **24 Category Selection**: Choose from 24 trivia categories or play all categories
 - **Live Trivia Questions**: Fetches real questions from the OpenTDB API
+- **Chinese Translation**: Questions can be translated to Chinese via OpenAI API
+- **Concurrent Translation**: Fast parallel translation of all questions
 - **Score Tracking**: Real-time score display with colorful progress indicators
 - **Keyboard Navigation**: Intuitive controls for playing
 - **Error Handling**: Graceful fallback with built-in questions when API is unavailable
@@ -15,16 +17,9 @@ A terminal-based trivia game built with Rust, featuring a beautiful TUI powered 
 
 - All Categories
 - General Knowledge
-- Books
-- Film
-- Music
-- Science & Nature
-- Computers
-- Mathematics
-- Sports
-- Geography
-- History
-- Animals
+- Entertainment: Books, Film, Music, Musicals & Theatres, Television, Video Games, Board Games, Comics, Japanese Anime & Manga, Cartoon & Animations
+- Science & Nature, Science: Computers, Science: Mathematics, Science: Gadgets
+- Mythology, Sports, Geography, History, Politics, Art, Celebrities, Animals, Vehicles
 
 ## Technologies Used
 
@@ -36,6 +31,7 @@ A terminal-based trivia game built with Rust, featuring a beautiful TUI powered 
 - **serde** - Serialization/deserialization framework
 - **anyhow** - Flexible error handling
 - **OpenTDB API** - Free trivia questions database
+- **OpenAI API** - Optional Chinese translation (requires `OPENAI_API_KEY`)
 
 ## Getting Started
 
@@ -43,6 +39,7 @@ A terminal-based trivia game built with Rust, featuring a beautiful TUI powered 
 
 - Rust (1.70 or later)
 - Internet connection (for fetching trivia questions)
+- `OPENAI_API_KEY` (optional, for Chinese translation)
 
 ### Installation & Running
 
@@ -57,11 +54,26 @@ A terminal-based trivia game built with Rust, featuring a beautiful TUI powered 
    cargo run --release
    ```
 
-Or build separately and run:
+### Command Line Flags
+
+| Flag | Description |
+|------|-------------|
+| `--lang=zh` | Enable Chinese UI and translation |
+| `--debug` | Enable debug logging to `rust-trivia.log` |
+
+Example:
 ```bash
-cargo build --release
-./target/release/rust-trivia
+cargo run --release -- --lang=zh --debug
 ```
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `OPENAI_API_KEY` | API key for translation | Only for Chinese mode |
+| `OPENAI_MODEL` | Model to use (default: `gpt-4o-mini`) | No |
+| `OPENAI_BASE_URL` | API base URL | No |
+| `LOG_FILE` | Debug log file path (default: `rust-trivia.log`) | No |
 
 ## How to Play
 
@@ -74,7 +86,7 @@ cargo build --release
 
 1. **Menu Screen**: Welcome screen with instructions
 2. **Category Selection**: Browse and select a trivia category
-3. **Loading**: Fetches questions from OpenTDB API
+3. **Loading**: Fetches questions from OpenTDB API, translates if Chinese mode enabled
 4. **Questions**: Multiple choice questions with 4 shuffled options
 5. **Game Over**: Final score, percentage, and detailed question review
 
@@ -82,10 +94,16 @@ cargo build --release
 
 ```
 src/
-├── main.rs     # Application entry point and game loop
+├── main.rs      # Application entry point and game loop
+├── lib.rs      # Library exports for testing
 ├── api.rs      # OpenTDB API client and data structures
 ├── game.rs     # Game state management and logic
-└── ui.rs       # Terminal UI rendering with ratatui
+├── ui.rs       # Terminal UI rendering with ratatui
+├── locale.rs   # Localization strings (English/Chinese)
+├── translation.rs  # OpenAI translation client
+
+benches/
+└── translation_bench.rs  # Translation speed benchmark
 ```
 
 ## Controls
@@ -125,6 +143,14 @@ The game fetches trivia questions from the [Open Trivia Database](https://opentd
 - Default: 10 questions per game
 - Fallback: Built-in questions if API is unavailable
 
+### Translation
+
+When `--lang=zh` is enabled and `OPENAI_API_KEY` is set:
+- Questions are translated to Chinese via OpenAI API
+- Category names are pre-translated via dictionary lookup
+- Difficulty levels are pre-translated (easy→简单, medium→中等, hard→困难)
+- All 10 questions are translated concurrently for speed
+
 ## Development
 
 ### Build
@@ -142,6 +168,11 @@ cargo run --release     # Run release build
 ### Test
 ```bash
 cargo test
+```
+
+### Benchmark
+```bash
+OPENAI_API_KEY=your_key cargo bench
 ```
 
 ### Format
