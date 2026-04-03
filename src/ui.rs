@@ -1,4 +1,4 @@
-use crate::game::{get_categories, Game, GameState};
+use crate::game::{get_categories, Game, GameState, LoadingPhase, TranslationProgress};
 use crate::locale::{Locale, LocaleStrings};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
@@ -32,7 +32,7 @@ pub fn draw(f: &mut Frame, game: &Game, locale: Locale) {
     match game.state {
         GameState::Menu => draw_menu(f, chunks[1], strings),
         GameState::SelectCategory => draw_select_category(f, chunks[1], game, strings),
-        GameState::Loading => draw_loading(f, chunks[1], strings),
+        GameState::Loading => draw_loading(f, chunks[1], strings, &game.loading_phase),
         GameState::Question => draw_question(f, chunks[1], game, strings),
         GameState::GameOver => draw_game_over(f, chunks[1], game, strings),
     }
@@ -105,13 +105,38 @@ fn draw_select_category(
     f.render_widget(list, area);
 }
 
-fn draw_loading(f: &mut Frame, area: ratatui::layout::Rect, strings: &LocaleStrings) {
-    let text = vec![
-        Line::from(""),
-        Line::from(strings.loading_title),
-        Line::from(""),
-        Line::from(strings.loading_message),
-    ];
+fn draw_loading(
+    f: &mut Frame,
+    area: ratatui::layout::Rect,
+    strings: &LocaleStrings,
+    phase: &Option<LoadingPhase>,
+) {
+    let text = match phase {
+        None | Some(LoadingPhase::Fetching) => vec![
+            Line::from(""),
+            Line::from(strings.loading_title),
+            Line::from(""),
+            Line::from(strings.loading_message),
+        ],
+        Some(LoadingPhase::Translating(progress)) => {
+            let (current, total, bar) = match progress {
+                Some(p) => {
+                    let filled = p.current;
+                    let empty = p.total.saturating_sub(p.current);
+                    let bar: String = "█".repeat(filled as usize) + &"░".repeat(empty as usize);
+                    (p.current, p.total, bar)
+                }
+                None => (0, 0, String::new()),
+            };
+            vec![
+                Line::from(""),
+                Line::from(strings.translating_title),
+                Line::from(""),
+                Line::from(format!("Translating Questions ({}/{})", current, total)),
+                Line::from(bar),
+            ]
+        }
+    };
 
     let paragraph = Paragraph::new(text)
         .alignment(Alignment::Center)
