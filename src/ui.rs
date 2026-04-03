@@ -1,4 +1,4 @@
-use crate::game::{get_categories, Game, GameState, LoadingPhase, TranslationProgress};
+use crate::game::{get_categories, Game, GameState, LoadingPhase};
 use crate::locale::{Locale, LocaleStrings};
 use ratatui::{
     layout::{Alignment, Constraint, Direction, Layout},
